@@ -5,6 +5,42 @@ Apollo部署添加多环境demo
 
 ---
 
+## Apollo架构设计图
+
+![Apollo架构设计图](https://raw.githubusercontent.com/ctripcorp/apollo/master/doc/images/overall-architecture.png "Apollo架构设计图")
+
+### 相关模块及其作用
+#### 四个核心模块
+- ConfigService，服务于Apollo客户端
+    - 提供配置获取接口
+    - 提供配置推送接口
+- AdminService，服务于管理界面Portal
+	- 提供配置管理接口
+	- 提供配置修改发布接口
+- Client，集成了Apollo配置中心的应用均可认为是Apollo的客户端
+	- 为应用获取配置，支持实时更新
+	- 通过MetaServer获取ConfigService的服务列表
+	- 使用客户端软负载SLB(software load balance)方式调用ConfigService
+- Portal，Apollo自己的配置管理界面
+	- 通过MetaServer获取AdminService的服务列表
+	- 使用客户端软负载SLB(Software load balance)方式调用AdminService
+
+#### 三个辅助服务
+- Eureka
+	- 用于服务发现和注册
+	    - 帮助Config/Admin Service 注册实例并定期检测其心跳
+	- 和ConfigService集成在同一个模块中
+- MetaServer
+	- Portal通过域名访问MetaServer获取AdminService的地址列表
+	- Client通过域名访问MetaServer获取ConfigService的地址列表
+	- 封装了Eureka，是Portal和Client访问Eureka的中介
+	- 一个逻辑角色，和ConfigService、Eureka集成在同一个模块中
+- NginxLB
+    - 和域名系统配合，协助Portal访问MetaServer获取AdminService的地址列表
+	- 和域名系统配合，协助Client访问MetaServer获取ConfigService的地址列表
+	- 和域名系统配合，协助用户访问Portal进行配置管理
+
+
 ## 部署步骤
 - 基本要求：部署支持开发dev和测试fat的两套配置
 - 在[Apollo项目的release页面下载](https://github.com/ctripcorp/apollo/releases)三个包，分别是Apollo-portal、Apollo-configService、Apollo-adminService
@@ -29,6 +65,7 @@ Apollo部署添加多环境demo
     - 进入Apollo-configService-dev中：
         - startup.sh中修改端口为8082，避免端口冲突
         - 修改数据库连接信息，将用户名和密码，以及url均改为本地的数据库对应信息，此外url中的database改为ApolloConfigDB_dev
+        - 启动了该模块后，已经可以使配置和demo进行连通，但是要想实现配置管理及热部署，还要部署另外两个模块
     - 进入Apollo-adminService-dev中：
         - startup.sh中修改端口为8092，避免端口冲突
         - 修改数据库连接信息，将用户名和密码，以及url均改为本地的数据库对应信息，此外url中的database改为ApolloConfigDB_dev
@@ -46,8 +83,9 @@ Apollo部署添加多环境demo
 - 启动Apollo-portal，访问localhost:8070，用户名和密码分别是apollo和admin
     - 进入系统能看到当前拥有的环境是dev
     
-- 按照dev的部署模式，将Apollo-configService-fat、Apollo-adminService-fat中的信息分别修改并启动，就能在apollo-portal中看到对应的fat信息
-- [在spring-boot项目中集成apollo详见](https://github.com/ctripcorp/apollo/wiki/Java%E5%AE%A2%E6%88%B7%E7%AB%AF%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97#3213-spring-boot%E9%9B%86%E6%88%90%E6%96%B9%E5%BC%8F%E6%8E%A8%E8%8D%90)，本项目同样采用了该方式进行集成
+- 按照dev的部署模式，将Apollo-configService-fat、Apollo-adminService-fat中的数据库、端口信息分别修改并启动，就能在apollo-portal中看到对应的fat信息
+
+- [在spring-boot项目中集成apollo](https://github.com/ctripcorp/apollo/wiki/Java%E5%AE%A2%E6%88%B7%E7%AB%AF%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97#3213-spring-boot%E9%9B%86%E6%88%90%E6%96%B9%E5%BC%8F%E6%8E%A8%E8%8D%90)，本项目同样采用了该方式进行集成
     - 添加依赖
     - 增加配置文件
         - 核心是以下四条信息
